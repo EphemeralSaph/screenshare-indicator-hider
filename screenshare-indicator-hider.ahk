@@ -12,8 +12,8 @@ if (A_Args.Length > 0 && A_Args[1] = "/hide") {
 ; ===================================================================
 ;  Helper: close any running process matching an exact exe path
 ; ===================================================================
-; Used before overwriting the installed hider, so a currently-running
-; previous install doesn't lock the file and cause FileCopy to fail.
+; Used before overwriting or deleting the installed hider, so a
+; currently-running previous install doesn't lock the file.
 ; Matches on the full path (via WMI's ExecutablePath), not just the
 ; process name, so we never accidentally close some unrelated
 ; program that happens to share the same filename elsewhere.
@@ -23,20 +23,51 @@ CloseRunningInstalledHider(exactPath) {
         escapedPath := StrReplace(exactPath, "\", "\\")
         wmi := ComObjGet("winmgmts:")
         results := wmi.ExecQuery("Select * from Win32_Process where ExecutablePath = '" . escapedPath . "'")
+        ; Never terminate ourselves — e.g. user double-clicked the
+        ; installed copy to reinstall/uninstall, so exactPath is us.
+        myPid := ProcessExist()
         for proc in results {
             try {
-                proc.Terminate()
+                if (Integer(proc.ProcessId) != myPid) {
+                    proc.Terminate()
+                }
             }
         }
         ; Give Windows a brief moment to fully release the file
-        ; handle after termination before we try to overwrite it.
+        ; handle after termination before we try to overwrite/delete.
         if (results.Count > 0) {
             Sleep(300)
         }
     } catch {
         ; Non-fatal — if this fails for any reason (e.g. WMI
-        ; unavailable), we just proceed to the FileCopy attempt as
-        ; before, which will surface its own error if still locked.
+        ; unavailable), we just proceed; the later FileCopy /
+        ; DirDelete will surface its own error if still locked.
+    }
+}
+
+; True if a prior install left behind its Startup shortcut and/or
+; anything in the install folder.
+IsAlreadyInstalled(installDir, shortcutPath) {
+    if FileExist(shortcutPath) {
+        return true
+    }
+    if !DirExist(installDir) {
+        return false
+    }
+    Loop Files, installDir . "\*.*" {
+        return true
+    }
+    return false
+}
+
+; Stop every process whose ExecutablePath is a file inside installDir
+; (covers renames between versions — not just the current exe name).
+CloseAllRunningFromInstallDir(installDir) {
+    if !DirExist(installDir) {
+        return
+    }
+    Loop Files, installDir . "\*.*" {
+        CloseRunningInstalledHider(A_LoopFileFullPath)
     }
 }
 
@@ -58,8 +89,29 @@ RunSetup() {
     exeName       := A_ScriptFullPath
     SplitPath(exeName, &exeFileName)
     destPath      := installDir . "\" . exeFileName
-    startupDir    := A_Startup
-    shortcutPath  := startupDir . "\ScreenShareIndicatorHider.lnk"
+    shortcutPath  := A_Startup . "\ScreenShareIndicatorHider.lnk"
+
+    ; Already installed? Offer reinstall vs uninstall instead of
+    ; silently overwriting (uninstall keeps the flow as simple as
+    ; install: double-click the same exe again).
+    if IsAlreadyInstalled(installDir, shortcutPath) {
+        choice := MsgBox(
+            "The screenshare indicator hider is already installed.`n`n"
+            . "Yes — Reinstall / update`n"
+            . "No — Uninstall completely`n"
+            . "Cancel — Leave everything as-is",
+            "Screenshare Indicator Hider",
+            "YesNoCancel Icon?"
+        )
+        if (choice = "Cancel") {
+            ExitApp()
+        }
+        if (choice = "No") {
+            RunUninstall(installDir, shortcutPath)
+            return
+        }
+        ; "Yes" → fall through and reinstall
+    }
 
     if !DirExist(installDir) {
         DirCreate(installDir)
@@ -119,6 +171,79 @@ RunSetup() {
         "Screenshare Indicator Hider",
         "Iconi"
     )
+    ExitApp()
+}
+
+; ===================================================================
+;  UNINSTALL mode
+; ===================================================================
+; Reverses setup: stop the running hider, remove the Startup
+; shortcut, delete the install folder. Safe to run from the
+; downloaded copy; if this process is itself inside the install
+; folder, deletion is deferred via a short cmd so we can exit first.
+RunUninstall(installDir, shortcutPath) {
+    CloseAllRunningFromInstallDir(installDir)
+
+    shortcutRemoved := true
+    if FileExist(shortcutPath) {
+        try {
+            FileDelete(shortcutPath)
+        } catch {
+            shortcutRemoved := false
+        }
+    }
+
+    folderRemoved := true
+    if DirExist(installDir) {
+        ; Can't delete our own directory while this process still has
+        ; the exe/script open inside it — schedule a delayed rmdir.
+        if (StrLower(A_ScriptDir) = StrLower(installDir)) {
+            Run(
+                A_ComSpec . ' /c ping 127.0.0.1 -n 2 > nul & rmdir /s /q "' . installDir . '"',
+                ,
+                "Hide"
+            )
+            ; Assume success; the delayed delete runs after we exit.
+        } else {
+            try {
+                DirDelete(installDir, true)
+            } catch {
+                folderRemoved := false
+            }
+        }
+    }
+
+    if (shortcutRemoved && folderRemoved) {
+        MsgBox(
+            "Uninstalled!`n`n"
+            . "The screenshare indicator hider has been removed and will no longer start when you log in.",
+            "Screenshare Indicator Hider",
+            "Iconi"
+        )
+    } else {
+        directions := ""
+        if !shortcutRemoved {
+            directions .=
+                "`n`nStartup shortcut`n"
+                . "1. Press Win+R, type shell:startup, and press Enter.`n"
+                . "2. Delete this file:`n"
+                . "   " . shortcutPath
+        }
+        if !folderRemoved {
+            directions .=
+                "`n`nInstall folder`n"
+                . "1. Press Win+R, paste the path below, and press Enter.`n"
+                . "2. Delete the folder (or everything inside it):`n"
+                . "   " . installDir
+        }
+        MsgBox(
+            "Uninstall mostly finished, but something couldn't be removed."
+            . " Please delete the leftover item(s) manually:"
+            . directions,
+            "Partial uninstall",
+            "Icon!"
+        )
+    }
     ExitApp()
 }
 
