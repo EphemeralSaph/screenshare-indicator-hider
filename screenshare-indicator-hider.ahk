@@ -165,6 +165,10 @@ RestoreShareIndicator(installDir, hwnd, isChromium) {
                 WinRestore(hwnd)
             }
         } else {
+            ; Unminimize first — WinMove alone does not.
+            if (WinGetMinMax(hwnd) = -1) {
+                WinRestore(hwnd)
+            }
             geo := LoadFirefoxGeometry(installDir, hwnd)
             if geo {
                 WinMove(geo[1], geo[2], geo[3], geo[4], hwnd)
@@ -393,8 +397,8 @@ CheckForShareIndicator() {
     }
 }
 
-; Chromium: minimize. Firefox: shrink + move off-screen
-; (minimize leaves a corner duplicate).
+; Chromium: minimize. Firefox: restore if needed, then
+; shrink + move off-screen (minimize leaves a visible bar).
 HideShareIndicator(hwnd, isChromium) {
     global INSTALL_DIR
 
@@ -413,6 +417,12 @@ HideShareIndicator(hwnd, isChromium) {
             WinMinimize(hwnd)
         }
     } else {
+        ; WinMove on a minimized window only nudges the
+        ; iconic placement (e.g. to -1,-1) and leaves a
+        ; visible title-bar remnant — restore first.
+        if (WinGetMinMax(hwnd) = -1) {
+            WinRestore(hwnd)
+        }
         WinGetPos(&x, &y, &w, &h, hwnd)
         ; Save original bounds only — not our 1x1 park.
         if (INSTALL_DIR != "" && (w > 1 || h > 1)) {
