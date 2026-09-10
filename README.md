@@ -6,6 +6,8 @@ Hides the "**X is sharing your screen/window**" or "**You are sharing X**" popup
 
 1. Download `screenshare-indicator-hider.exe` from this repo's [Releases](../../releases) page.
 2. Double-click it.
+3. Uncheck "Always ask before opening this file".
+4. Click "Run".
 
 Running the downloaded `.exe` again later (e.g. after updating it) is safe — it automatically closes any already-running installed copy first (so its file isn't locked and re-installing doesn't fail), then reinstalls over it.
 
@@ -32,7 +34,7 @@ Whenever a website shares your screen (Google Meet, Zoom's web client, Discord, 
 
 This is intentional behavior (it exists so no website can silently hide the fact that it's capturing your screen), but it's still an annoyance with no built-in setting to fix it in Brave, Chrome, Firefox, or any other Chromium/Firefox-based browser.
 
-## The Fix
+## The Solution
 
 This tool watches for that indicator window and, the moment it appears:
 
