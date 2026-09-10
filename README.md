@@ -9,15 +9,12 @@ Hides the "**X is sharing your screen/window**" or "**You are sharing X**" popup
 3. Uncheck "Always ask before opening this file".
 4. Click "Run".
 
-Running the downloaded `.exe` again later (e.g. after updating it) is safe — it automatically closes any already-running installed copy first (so its file isn't locked and re-installing doesn't fail), then reinstalls over it.
+Running the downloaded `.exe` again later (e.g. after updating it) shows a prompt: **Yes** reinstalls/updates, **No** uninstalls, **Cancel** leaves things as-is.
 
 ## Uninstalling
 
-1. Navigate to your Startup folder: Press `Win + R`, type `shell:startup`, hit Enter.
-2. Delete the `screenshare-indicator-hider.exe` shortcut from your Startup folder.
-3. Open Task Manager and search for "screen". If you get a result that says `screenshare-indicator-hider.exe`, right-click it and select `End task`.
-4. Navigate to your `%LocalAppData%` folder: Type `%LocalAppData%` in the File Explorer address bar, hit Enter.
-5. Delete the `ScreenShareIndicatorHider` folder.
+1. Double-click `screenshare-indicator-hider.exe` again (same file you used to install).
+2. Click **No** when asked whether to reinstall or uninstall.
 
 ---
 
