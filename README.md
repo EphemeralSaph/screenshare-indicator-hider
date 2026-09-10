@@ -36,7 +36,9 @@ This is intentional behavior (it exists so no website can silently hide the fact
 This tool watches for that indicator window and, the moment it appears:
 
 1. Applies the `WS_EX_TOOLWINDOW` extended window style to it, which tells Windows to exclude it from the taskbar and Alt-Tab. (A brief hide/show cycle is needed right after, since Windows' taskbar manager only re-checks a window's style when it re-appears, not continuously.)
-2. Shrinks it to a 1×1 pixel and moves it to off-screen coordinates (`-2000, -2000`) — a position with no physical monitor to render on, so it's fully invisible without ever hiding, minimizing, or closing the window (any of which might either fail to remove it from view, or break the screenshare entirely).
+2. Hides it in an engine-specific way:
+   - **Chromium-based browsers**: minimizes the window. Shrink/move doesn't make Chromium's indicator disappear, but minimize does.
+   - **Firefox-based browsers**: shrinks it to 1×1 px and parks it just past the top-left of the virtual desktop (so it stays off every monitor). Minimize isn't used here — Firefox leaves a persistent duplicate of the window in the bottom-left corner instead of disappearing.
 
 The indicator window is still fully open and functional the whole time — it's just untouchable and invisible. If you ever need to actually stop the screenshare, use the in-page "Stop presenting" button that Meet/Zoom/etc. show inside the tab itself, rather than this window.
 
