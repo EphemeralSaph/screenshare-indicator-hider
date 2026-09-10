@@ -277,18 +277,22 @@ CheckForShareIndicator() {
         ; hwnd = window handle: Windows' ID for a specific open window.
         ; Try matching this title pattern on a Chromium-classed window...
         hwnd := WinExist(pattern . " ahk_class " . CHROMIUM_CLASS)
-        if !hwnd {
-            ; ...or a Firefox-classed window.
-            hwnd := WinExist(pattern . " ahk_class " . FIREFOX_CLASS)
-        }
-
         if hwnd {
-            HideFromTaskbarAndMoveOffscreen(hwnd)
+            HideShareIndicator(hwnd, true)
+            continue
+        }
+        ; ...or a Firefox-classed window.
+        hwnd := WinExist(pattern . " ahk_class " . FIREFOX_CLASS)
+        if hwnd {
+            HideShareIndicator(hwnd, false)
         }
     }
 }
 
-HideFromTaskbarAndMoveOffscreen(hwnd) {
+; Chromium: minimize (shrink/move doesn't hide it there).
+; Firefox: shrink + move off-screen (minimize leaves a persistent
+; duplicate in the bottom-left corner).
+HideShareIndicator(hwnd, isChromium) {
     exStyle := WinGetExStyle(hwnd)
 
     ; Only need to apply TOOLWINDOW once per window handle.
@@ -301,10 +305,18 @@ HideFromTaskbarAndMoveOffscreen(hwnd) {
         WinShow(hwnd)
     }
 
-    ; Shrink to 1x1px and park it just past the top-left of the
-    ; virtual screen (the bounding box of all monitors). Using
-    ; SM_XVIRTUALSCREEN / SM_YVIRTUALSCREEN keeps it off every
-    ; display even when a monitor sits left or above the primary.
-    ; Done every tick (not gated) in case the window snaps back.
-    WinMove(SysGet(76) - 1, SysGet(77) - 1, 1, 1, hwnd)
+    if isChromium {
+        ; Done every tick in case the window is restored somehow.
+        ; WinGetMinMax returns -1 when minimized.
+        if (WinGetMinMax(hwnd) != -1) {
+            WinMinimize(hwnd)
+        }
+    } else {
+        ; Shrink to 1x1px and park it just past the top-left of the
+        ; virtual screen (the bounding box of all monitors). Using
+        ; SM_XVIRTUALSCREEN / SM_YVIRTUALSCREEN keeps it off every
+        ; display even when a monitor sits left or above the primary.
+        ; Done every tick (not gated) in case the window snaps back.
+        WinMove(SysGet(76) - 1, SysGet(77) - 1, 1, 1, hwnd)
+    }
 }
