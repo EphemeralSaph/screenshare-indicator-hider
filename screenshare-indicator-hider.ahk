@@ -176,7 +176,10 @@ HideFromTaskbarAndMoveOffscreen(hwnd) {
         WinShow(hwnd)
     }
 
-    ; Shrink to 1x1px and move fully off-screen. Done every tick
-    ; (not gated) in case the window snaps back to center.
-    WinMove(-2000, -2000, 1, 1, hwnd)
+    ; Shrink to 1x1px and park it just past the top-left of the
+    ; virtual screen (the bounding box of all monitors). Using
+    ; SM_XVIRTUALSCREEN / SM_YVIRTUALSCREEN keeps it off every
+    ; display even when a monitor sits left or above the primary.
+    ; Done every tick (not gated) in case the window snaps back.
+    WinMove(SysGet(76) - 1, SysGet(77) - 1, 1, 1, hwnd)
 }
